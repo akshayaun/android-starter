@@ -1,9 +1,11 @@
 package com.example.android.sunshine.app;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.text.format.Time;
 import android.util.Log;
@@ -56,12 +58,41 @@ public class MainActivityFragment extends Fragment {
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.action_refresh) {
-            FetchWeatherClass fetchweatherTask = new FetchWeatherClass();
-            fetchweatherTask.execute("Bangalore");
+            updateWeather();
+
+            return true;
+        }
+        if(id==R.id.action_map){
+            openPreferredLocationInMap();
             return true;
         }
 
         return super.onOptionsItemSelected(item);
+    }
+    public void openPreferredLocationInMap(){
+        SharedPreferences pref=PreferenceManager.getDefaultSharedPreferences(this.getActivity());
+        String location=pref.getString(getString(R.string.pref_location_key),getString(R.string.pref_location_default));
+        Uri geoLocation= Uri.parse("http://maps.google.co.in/maps?").buildUpon().appendQueryParameter("q",location).build();
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+             intent.setData(geoLocation);
+        if (intent.resolveActivity(getActivity().getPackageManager()) != null) {
+                        startActivity(intent);
+                    } else {
+                        Log.d("OPEN_IN_MAP", "Couldn't call " + location + ", no receiving apps installed!");
+                    }
+
+    }
+    @Override
+    public void onStart() {
+        super.onStart();
+        updateWeather();
+    }
+
+    private void updateWeather() {
+        FetchWeatherClass fetchweatherTask = new FetchWeatherClass();
+        SharedPreferences preferences= PreferenceManager.getDefaultSharedPreferences(getActivity());
+        String locaiton=preferences.getString(getString(R.string.pref_location_key),getString(R.string.pref_location_default));
+        fetchweatherTask.execute(locaiton);
     }
 
     @Override
@@ -69,11 +100,7 @@ public class MainActivityFragment extends Fragment {
                              Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
         List<String> forecast = new ArrayList<String>();
-        forecast.add("Today - Sunny -23/28");
-        forecast.add("Tomorrow - Sunny -23/28");
-        forecast.add("weds - Sunny -23/28");
-        forecast.add("thursday - Sunny -23/28");
-        forecast.add("Friday - Sunny -23/28");
+
         mForecastAdapter = new ArrayAdapter<String>(this.getActivity(), R.layout.list_item_forecast, R.id.list_item_forecast_textview, forecast);
         ListView listView = (ListView) rootView.findViewById(R.id.listview_forecast);
         listView.setAdapter(mForecastAdapter);
@@ -105,6 +132,12 @@ public class MainActivityFragment extends Fragment {
      */
     private String formatHighLows(double high, double low) {
         // For presentation, assume the user doesn't care about tenths of a degree.
+        SharedPreferences preferences= PreferenceManager.getDefaultSharedPreferences(getActivity());
+        String unitType=preferences.getString(getString(R.string.pref_units_key),getString(R.string.pref_units_metric));
+        if(unitType.equals(getString(R.string.pref_units_imperial))){
+            high=(high*1.8)+32;
+            low=(low*1.8)+32;
+        }
         long roundedHigh = Math.round(high);
         long roundedLow = Math.round(low);
 
